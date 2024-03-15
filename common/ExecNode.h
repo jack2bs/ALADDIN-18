@@ -140,7 +140,7 @@ class ExecNode {
         inductive(false), dynamic_mem_op(false), double_precision(false),
         array_label(""), partition_index(0), time_before_execution(0.0),
         mem_access(nullptr), static_inst(nullptr), static_function(nullptr),
-        variable(nullptr), vertex_assigned(false) {}
+        variable(nullptr), vertex_assigned(false), bitwidth(0) {}
 
   ~ExecNode() {
     if (mem_access)
@@ -206,6 +206,7 @@ class ExecNode {
   float get_time_before_execution() const { return time_before_execution; }
 
   /* Setters. */
+  void set_bitwidth(int bitwidth) { this->bitwidth = bitwidth; }
   void set_microop(uint8_t microop) { this->microop = microop; }
   void set_variable(SrcTypes::Variable* var) { variable = var; }
   void set_static_function(SrcTypes::Function* func) {
@@ -246,6 +247,8 @@ class ExecNode {
   void set_loop_depth(unsigned depth) { loop_depth = depth; }
   void set_special_math_op(const std::string& name) { special_math_op = name; }
   void set_time_before_execution(float time) { time_before_execution = time; }
+
+  int get_bitwidth() { return bitwidth; }
 
   SrcTypes::DynamicFunction get_dynamic_function() const {
     return SrcTypes::DynamicFunction(static_function, dynamic_invocation);
@@ -442,6 +445,7 @@ class ExecNode {
     switch (microop) {
       case LLVM_IR_Add:
       case LLVM_IR_Sub:
+      case LLVM_IR_ICmp:
         return true;
       default:
         return false;
@@ -550,6 +554,7 @@ class ExecNode {
       case LLVM_IR_FMul:
       case LLVM_IR_FDiv:
       case LLVM_IR_FRem:
+      case LLVM_IR_FCmp:
         return true;
       default:
         return false;
@@ -580,6 +585,7 @@ class ExecNode {
     switch (microop) {
       case LLVM_IR_FAdd:
       case LLVM_IR_FSub:
+      case LLVM_IR_FCmp:
         return true;
       default:
         return false;
@@ -692,6 +698,9 @@ class ExecNode {
   SrcTypes::Variable* variable;
   /* The basic block this node refers to. */
   SrcTypes::BasicBlock* basic_block;
+
+  /* The bitwidth of the largest parameter/return of the execute node */
+  int bitwidth;
 
  private:
   /* True if the node has been assigned a vertex, false otherwise. */

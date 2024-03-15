@@ -324,6 +324,8 @@ void BaseDatapath::updatePerCycleActivity(
     int node_level = node->get_start_execution_cycle();
     FunctionActivity& curr_fu_activity = func_activity.at(func_id).at(node_level);
 
+    // std::cout << "Node: " << node->get_node_id() << "MicroOP: " << node->get_microop_name() << '\n';
+
     if (node->is_multicycle_op()) {
       for (int stage = 0;
            node_level + stage < node->get_complete_execution_cycle();
@@ -523,29 +525,38 @@ void BaseDatapath::outputPerCycleActivity(
 
   /*Caculating the number of FUs and leakage power*/
   int max_reg_read = 0, max_reg_write = 0;
+  std::cout << "Numcycles: " << num_cycles << '\n';
   for (unsigned level_id = 0; ((int)level_id) < num_cycles; ++level_id) {
-    if (max_reg_read < regStats.at(level_id).reads)
+    if (max_reg_read <= regStats.at(level_id).reads) {
       max_reg_read = regStats.at(level_id).reads;
-    if (max_reg_write < regStats.at(level_id).writes)
+      std::cout << "Upd read to: " << max_reg_read << "\t at: " << level_id << '\n';
+    }
+    if (max_reg_write <= regStats.at(level_id).writes) {
       max_reg_write = regStats.at(level_id).writes;
+      std::cout << "Upd write to: " << max_reg_write << "\t at: " << level_id << '\n';
+    }
+      
+    
   }
-  int max_reg = max_reg_read + max_reg_write;
-  int max_add = 0, max_mul = 0, max_bit = 0, max_shifter = 0;
-  int max_fp_sp_mul = 0, max_fp_dp_mul = 0;
-  int max_fp_sp_add = 0, max_fp_dp_add = 0;
-  int max_trig = 0;
+  std::cout << "Max read: " << max_reg_read << "\tMax write: " << max_reg_write << '\n';
+
+  unsigned int max_reg = max_reg_read + max_reg_write;
+  unsigned int max_add = 0, max_mul = 0, max_bit = 0, max_shifter = 0;
+  unsigned int max_fp_sp_mul = 0, max_fp_dp_mul = 0;
+  unsigned int max_fp_sp_add = 0, max_fp_dp_add = 0;
+  unsigned int max_trig = 0;
   for (auto it = functionNames.begin(); it != functionNames.end(); ++it) {
     auto max_it = func_max_activity.find(*it);
     assert(max_it != func_max_activity.end());
-    max_bit += max_it->second.bit;
-    max_add += max_it->second.add;
-    max_mul += max_it->second.mul;
-    max_shifter += max_it->second.shifter;
-    max_fp_sp_mul += max_it->second.fp_sp_mul;
-    max_fp_dp_mul += max_it->second.fp_dp_mul;
-    max_fp_sp_add += max_it->second.fp_sp_add;
-    max_fp_dp_add += max_it->second.fp_dp_add;
-    max_trig += max_it->second.trig;
+    max_bit = (max_it->second.bit > max_bit) ? max_it->second.bit : max_bit;
+    max_add = (max_it->second.add > max_add) ? max_it->second.add : max_add;
+    max_mul = (max_it->second.mul > max_mul) ? max_it->second.mul : max_mul;
+    max_shifter = (max_it->second.shifter > max_shifter) ? max_it->second.shifter : max_shifter;
+    max_fp_sp_mul = (max_it->second.fp_sp_mul > max_fp_sp_mul) ? max_it->second.fp_sp_mul : max_fp_sp_mul;
+    max_fp_dp_mul = (max_it->second.fp_dp_mul > max_fp_dp_mul) ? max_it->second.fp_dp_mul : max_fp_dp_mul;
+    max_fp_sp_add = (max_it->second.fp_sp_add > max_fp_sp_add) ? max_it->second.fp_sp_add : max_fp_sp_add;
+    max_fp_dp_add = (max_it->second.fp_dp_add > max_fp_dp_add) ? max_it->second.fp_dp_add : max_fp_dp_add;
+    max_trig = (max_it->second.trig > max_trig) ? max_it->second.trig : max_trig;
   }
 
   float add_leakage_power = add_leak_power * max_add;
@@ -949,16 +960,26 @@ void BaseDatapath::computeRegStats() {
           child_node->is_convert_op())
         continue;
 
+      int parid = edgeToParid[*out_edge_it];
+      if (parid != REGISTER_EDGE)
+      {
+        continue;
+      }
+      
+
       int child_level = child_node->get_start_execution_cycle();
       if (child_level > max_children_level)
         max_children_level = child_level;
-      if (child_level > node_level && child_level != num_cycles - 1)
+      if (child_level > node_level && child_level != num_cycles - 1){
         children_levels.insert(child_level);
+        std::cout << "pid: " << node->get_node_id() << "\tcid: " << child_node->get_node_id() << "\tid: " << parid << '\n';
+      }
     }
-    for (auto it = children_levels.begin(); it != children_levels.end(); it++)
+    for (auto it = children_levels.begin(); it != children_levels.end(); it++) {
       regStats.at(*it).reads++;
+    }
 
-    if (max_children_level > node_level && node_level != 0)
+    if (max_children_level > node_level)
       regStats.at(node_level).writes++;
   }
 }
@@ -990,8 +1011,11 @@ void BaseDatapath::markNodeStarted(ExecNode* node) {
 
 // Marks a node as completed and advances the executing queue iterator.
 void BaseDatapath::markNodeCompleted(
-    std::list<ExecNode*>::iterator& executingQueuePos, int& advance_to) {
+    std::list<ExecNode*>::iterator& executingQueuePos, int& advance_to) { 
   ExecNode* node = *executingQueuePos;
+ 
+  std::cout << "Node#: " << node->get_node_id() << ", op: " << node->get_microop_name() << ", num_cycles: " << num_cycles << '\n';
+ 
   executedNodes++;
   node->set_complete_execution_cycle(num_cycles);
   executingQueue.erase(executingQueuePos);
@@ -1042,8 +1066,9 @@ void BaseDatapath::initExecutingQueue() {
   for (auto node_it = program.nodes.begin(); node_it != program.nodes.end();
        ++node_it) {
     ExecNode* node = node_it->second;
-    if (node->get_num_parents() == 0 && !node->is_isolated())
+    if (node->get_num_parents() == 0 && !node->is_isolated()) {
       executingQueue.push_back(node);
+    }
   }
 }
 

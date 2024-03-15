@@ -55,7 +55,7 @@ void InductionDependenceRemoval::optimize() {
           any_inductive = true;
         }
       }
-      if (all_inductive) {
+      if (all_inductive && any_inductive) {
         node->set_inductive(true);
         if (node->is_int_add_op())
           node->set_microop(LLVM_IR_IndexAdd);

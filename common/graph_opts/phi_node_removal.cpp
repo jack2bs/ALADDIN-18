@@ -40,6 +40,7 @@ void PhiNodeRemoval::optimize() {
     if (node->is_phi_op()) {
       // find its first non-phi ancestor.
       // phi node can have multiple children, but it can only have one parent.
+      std::cout << "Nodeid: " << node->get_node_id() << '\n';
       assert(boost::in_degree(node_vertex, graph) == 1);
       in_edge_iter in_edge_it = in_edges(node_vertex, graph).first;
       Vertex parent_vertex = source(*in_edge_it, graph);
@@ -68,6 +69,7 @@ void PhiNodeRemoval::optimize() {
       }
     } else {
       // convert nodes
+      std::cout << "Nodeid: " << node->get_node_id() << '\n';
       assert(boost::in_degree(node_vertex, graph) == 1);
       in_edge_iter in_edge_it = in_edges(node_vertex, graph).first;
       Vertex parent_vertex = source(*in_edge_it, graph);

@@ -151,6 +151,8 @@ void ScratchpadDatapath::scratchpadPartition() {
     if (p_type == block)
       part_type = block;
 
+    
+
     if (!scratchpad_partition_executed) {
       // Only create the scratchpads once.
       scratchpad->setScratchpad(
@@ -349,7 +351,7 @@ void ScratchpadDatapath::updateChildren(ExecNode* node) {
   if (!node->has_vertex())
     return;
   float latency_after_current_node = 0;
-  if (node->is_memory_op() || node->is_fp_op()) {
+  if (node->is_memory_op() || node->is_host_mem_op() || node->is_fp_op() || node->is_control_op()) {
     /*No packing for both memory ops and floating point ops. Children can only
      * start at the cycle after. */
     latency_after_current_node = (num_cycles + 1) * cycle_time;
@@ -377,19 +379,22 @@ void ScratchpadDatapath::updateChildren(ExecNode* node) {
     if (child_node->get_num_parents() > 0) {
       child_node->decr_num_parents();
       if (child_node->get_num_parents() == 0) {
+
         bool child_zero_latency =
-            (child_node->is_memory_op())
+            (child_node->is_memory_op() || child_node->is_host_mem_op())
                 ? false
                 : (child_node->fu_node_latency(cycle_time) == 0);
-        bool curr_zero_latency = (node->is_memory_op())
-                                     ? false
-                                     : (node->fu_node_latency(cycle_time) == 0);
+        // bool curr_zero_latency = (node->is_memory_op() || node->is_host_mem_op())
+        //                              ? false
+        //                              : (node->fu_node_latency(cycle_time) == 0);    
+
         if (edge_parid == REGISTER_EDGE || edge_parid == FUSED_BRANCH_EDGE ||
-            node->is_call_op() || node->is_ret_op() ||
-            ((child_zero_latency || curr_zero_latency) &&
+            // node->is_call_op() || node->is_ret_op() ||
+            ((child_zero_latency) &&
+            // ((child_zero_latency || curr_zero_latency) &&
              edge_parid != CONTROL_EDGE)) {
           executingQueue.push_back(child_node);
-        } else if (child_node->is_memory_op() || node->is_memory_op() ||
+        } else if (child_node->is_memory_op() || child_node->is_host_mem_op() || node->is_memory_op() || node->is_host_mem_op() ||
                    child_node->is_fp_op() || node->is_fp_op()) {
           /* Do not pack memory operations and floating point functional units
            *  with others. */

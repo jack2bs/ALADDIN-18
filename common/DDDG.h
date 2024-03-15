@@ -300,7 +300,7 @@ class DDDG {
   uint8_t prev_microop;
   std::string prev_bblock;
   std::string curr_bblock;
-  ExecNode* curr_node;
+  ExecNode* curr_node = nullptr;
 
   SrcTypes::Function* callee_function;
   SrcTypes::DynamicFunction callee_dynamic_function;

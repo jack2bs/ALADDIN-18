@@ -316,14 +316,24 @@ void DDDG::parse_instruction_line(const std::string& line) {
   // Another function cannot be called until all previous nodes in the current
   // function have finished, and a function must execute all nodes before nodes
   // in the parent function can execute. The only exceptions are DMA nodes.
+  if (curr_node->get_node_id() == 2)
+  {
+    std::cout << "Nodeid here: " << curr_node->get_microop_name() << '\n';
+  }
   if (curr_node->is_ret_op() || curr_node->is_call_op()) {
     for (auto node_id : nodes_since_last_ret)
+    {
       insert_control_dependence(node_id, current_node_id);
+      if (last_ret && last_ret != curr_node)
+      {
+        insert_control_dependence(last_ret->get_node_id(), node_id);
+      }
+    }
     nodes_since_last_ret.clear();
     if (last_ret && last_ret != curr_node)
       insert_control_dependence(last_ret->get_node_id(), current_node_id);
     last_ret = curr_node;
-  } else if (!curr_node->is_dma_op()) {
+  } else if (!curr_node->is_dma_op() && !curr_node->is_phi_op() && !curr_node->is_convert_op()) {
     nodes_since_last_ret.push_back(current_node_id);
   }
 
