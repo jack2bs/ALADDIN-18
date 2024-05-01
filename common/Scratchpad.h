@@ -140,6 +140,7 @@ class Scratchpad {
   /* Set if ReadyPartition is used. */
   bool ready_mode;
   float cycleTime;  // in ns
+ public:
   std::unordered_map<std::string, LogicalArray*> logical_arrays;
 };
 

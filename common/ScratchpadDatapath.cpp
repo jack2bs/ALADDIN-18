@@ -35,6 +35,15 @@ void ScratchpadDatapath::globalOptimizationPass() {
   std::cout << "=============================================" << std::endl;
   std::cout << "      Optimizing...            " << benchName << std::endl;
   std::cout << "=============================================" << std::endl;
+
+  for (auto s : scratchpad->logical_arrays)
+  {
+    std::cout << "Part named: " << s.first << " has index: " << s.second->getNumPartitions() << '\n';
+  }
+  
+
+  program.printDDDG();
+
   // Node removals must come first.
   removePhiNodes();
   /* memoryAmbiguation() should execute after removeInductionDependence()
@@ -68,14 +77,18 @@ void ScratchpadDatapath::initBaseAddress() {
 
   vertex_iter vi, vi_end;
   for (boost::tie(vi, vi_end) = vertices(program.graph); vi != vi_end; ++vi) {
-    if (boost::degree(*vi, program.graph) == 0)
-      continue;
     Vertex curr_vertex = *vi;
     ExecNode* node = program.nodeAtVertex(curr_vertex);
-    if (!node->is_memory_op())
+    if (boost::degree(*vi, program.graph) == 0) {
       continue;
+    }
+    if (!node->is_memory_op()) {
+      continue;
+    }
     const std::string& part_name = node->get_array_label();
+
     if (user_params.partition.find(part_name) == user_params.partition.end()) {
+      std::cout << "The losing node was " << node->get_node_id() << '\n';
       std::cerr << "Unknown partition : " << part_name
                 << " at node: " << node->get_node_id() << std::endl;
       exit(-1);
@@ -351,7 +364,7 @@ void ScratchpadDatapath::updateChildren(ExecNode* node) {
   if (!node->has_vertex())
     return;
   float latency_after_current_node = 0;
-  if (node->is_memory_op() || node->is_host_mem_op() || node->is_fp_op() || node->is_control_op()) {
+  if (node->is_host_mem_op() || node->is_fp_op() || node->is_control_op() || node->is_store_op() || (node->is_load_op() && !registers.has(node->get_array_label()))) {
     /*No packing for both memory ops and floating point ops. Children can only
      * start at the cycle after. */
     latency_after_current_node = (num_cycles + 1) * cycle_time;
@@ -390,11 +403,9 @@ void ScratchpadDatapath::updateChildren(ExecNode* node) {
 
         if (edge_parid == REGISTER_EDGE || edge_parid == FUSED_BRANCH_EDGE ||
             // node->is_call_op() || node->is_ret_op() ||
-            ((child_zero_latency) &&
-            // ((child_zero_latency || curr_zero_latency) &&
-             edge_parid != CONTROL_EDGE)) {
+            child_zero_latency) {
           executingQueue.push_back(child_node);
-        } else if (child_node->is_memory_op() || child_node->is_host_mem_op() || node->is_memory_op() || node->is_host_mem_op() ||
+        } else if (child_node->is_store_op() || (child_node->is_load_op() && !registers.has(child_node->get_array_label())) || child_node->is_host_mem_op() || node->is_store_op() || (node->is_load_op() && !registers.has(node->get_array_label())) || node->is_host_mem_op() ||
                    child_node->is_fp_op() || node->is_fp_op()) {
           /* Do not pack memory operations and floating point functional units
            *  with others. */

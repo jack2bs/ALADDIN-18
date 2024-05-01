@@ -246,6 +246,7 @@ class ExecNode {
   }
   void set_loop_depth(unsigned depth) { loop_depth = depth; }
   void set_special_math_op(const std::string& name) { special_math_op = name; }
+  void set_intrinsic_op(const std::string& name) { intrinsic_op = name; }
   void set_time_before_execution(float time) { time_before_execution = time; }
 
   int get_bitwidth() { return bitwidth; }
@@ -458,9 +459,9 @@ class ExecNode {
    * (scratchpad or cache) .*/
   float fu_node_latency(float cycle_time) const {
     if (microop == LLVM_IR_Ret)
-      return cycle_time;
+      return 0;
     if (is_intrinsic_op())
-      return intrinsic_op_latency_in_cycles() * cycle_time;
+      return intrinsic_op_latency_in_cycles(cycle_time);
     if (is_fp_op())
       return fp_node_latency_in_cycles() * cycle_time;
     switch ((int)cycle_time) {
@@ -625,12 +626,35 @@ class ExecNode {
     return SPECIAL_MATH_NODE_LATENCY_IN_CYCLES;
   }
 
-  unsigned intrinsic_op_latency_in_cycles() const {
+  float intrinsic_op_latency_in_cycles(float cycle_time) const {
     // Intrinsic operations are generally meant to represent functions that
     // would be inefficient to model directly. Since there are so many of them,
     // for now just assume they all take a single cycle. Later, we can refine
     // them if need be based on the operation.
-    return 1;
+
+    if ((intrinsic_op.find("llvm.smin") != std::string::npos)
+    || (intrinsic_op.find("llvm.smax") != std::string::npos))
+    {
+      switch ((int)cycle_time) 
+      {
+      case 6:
+        return ADD_6ns_critical_path_delay;
+      case 5:
+        return ADD_5ns_critical_path_delay;
+      case 4:
+        return ADD_4ns_critical_path_delay;
+      case 3:
+        return ADD_3ns_critical_path_delay;
+      case 2:
+        return ADD_2ns_critical_path_delay;
+      case 1:
+        return ADD_1ns_critical_path_delay;
+      default:
+        return ADD_6ns_critical_path_delay;
+      }
+    }
+
+    return cycle_time;
   }
 
   std::string get_microop_name() const { return opcode_name(microop); }
@@ -689,6 +713,8 @@ class ExecNode {
   unsigned loop_depth;
   /* Name of the special math function. */
   std::string special_math_op;
+  /* Name of the special math function. */
+  std::string intrinsic_op;
 
   /* The static instruction that generated this node. */
   SrcTypes::Instruction* static_inst;

@@ -5,6 +5,38 @@
 
 using namespace SrcTypes;
 
+void Program::printDDDG(void){
+
+  
+
+  for (auto node_id_pair : nodes)
+  {
+    unsigned id = node_id_pair.first;
+
+    std::cout << "Current Node: " << id << ", op: " << nodes.at(id)->get_microop_name() << " " << (nodes.at(id)->has_array_label() ? nodes.at(id)->get_array_label() : "") << '\n';
+
+    std::cout << "   Parent nodes:\n";
+    std::vector<unsigned> parents = getParentNodes(id);
+    for (unsigned p : parents)
+    {
+      std::cout << "      id: " << p << ", op: " << nodes.at(p)->get_microop_name() << '\n';
+    }
+
+    std::cout << "   end Parent Nodes\n\n";
+
+    std::cout << "   Child nodes:\n";
+    std::vector<unsigned> children = getChildNodes(id);
+    for (unsigned c : children)
+    {
+      std::cout << "      id: " << c << ", op: " << nodes.at(c)->get_microop_name() << '\n';
+    }
+    std::cout << "   end Child Nodes\n\n";
+  }
+  
+  return;
+
+}
+
 void Program::addEdge(unsigned int from, unsigned int to, uint8_t parid) {
   if (from != to) {
     add_edge(nodes.at(from)->get_vertex(), nodes.at(to)->get_vertex(),

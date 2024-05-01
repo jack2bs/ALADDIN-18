@@ -316,10 +316,6 @@ void DDDG::parse_instruction_line(const std::string& line) {
   // Another function cannot be called until all previous nodes in the current
   // function have finished, and a function must execute all nodes before nodes
   // in the parent function can execute. The only exceptions are DMA nodes.
-  if (curr_node->get_node_id() == 2)
-  {
-    std::cout << "Nodeid here: " << curr_node->get_microop_name() << '\n';
-  }
   if (curr_node->is_ret_op() || curr_node->is_call_op()) {
     for (auto node_id : nodes_since_last_ret)
     {
@@ -430,13 +426,29 @@ void DDDG::parse_parameter(const std::string& line, int param_tag) {
     if (curr_microop == LLVM_IR_SpecialMathOp) {
       curr_node->set_special_math_op(label);
     }
+    if (curr_microop == LLVM_IR_Intrinsic) {
+      curr_node->set_intrinsic_op(label);
+    }
   }
   last_parameter = true;
   if (is_reg) {
     Variable* variable = srcManager.insert<Variable>(label);
     DynamicVariable unique_reg_ref(curr_dynamic_function, variable);
-    auto reg_it = register_last_written.find(unique_reg_ref);
-    bool found_reg_entry = reg_it != register_last_written.end();
+    
+    bool found_reg_entry = false;
+    int old_reg_id = -1;
+    for (auto var : register_last_written)
+    {
+      if (var.first == unique_reg_ref)
+      {
+        found_reg_entry = true;
+        old_reg_id = var.second;
+      }
+    }
+    
+    // auto reg_it = register_last_written.find(unique_reg_ref);
+    // bool found_reg_entry = reg_it != register_last_written.end();
+    
     if (curr_microop == LLVM_IR_Call && param_tag != num_of_parameters) {
       // The first parameter on a call function block is the name of the
       // function itself, not an argument to the function.
@@ -445,7 +457,7 @@ void DDDG::parse_parameter(const std::string& line, int param_tag) {
       // argument.  The second element in the pair is the id of the last node
       // to write to this register, if such a node exists.
       unsigned last_node_to_modify =
-          found_reg_entry ? reg_it->second : current_node_id;
+          found_reg_entry ? old_reg_id : current_node_id;
       func_caller_args.push_back(
           FunctionCallerArg(param_tag, unique_reg_ref, last_node_to_modify, true));
     }
@@ -453,7 +465,7 @@ void DDDG::parse_parameter(const std::string& line, int param_tag) {
     if (found_reg_entry) {
       /*Find the last instruction that writes to the register*/
       reg_edge_t tmp_edge = { (unsigned)current_node_id, param_tag };
-      register_edge_table.insert(std::make_pair(reg_it->second, tmp_edge));
+      register_edge_table.insert(std::make_pair(old_reg_id, tmp_edge));
       num_of_reg_dep++;
     } else if ((curr_microop == LLVM_IR_Store && param_tag == 2) ||
                (curr_microop == LLVM_IR_Load && param_tag == 1)) {
@@ -487,6 +499,7 @@ void DDDG::parse_parameter(const std::string& line, int param_tag) {
       const std::string& reg_name = parameter_label_per_inst.back();
       Variable* var = srcManager.get<Variable>(reg_name);
       curr_node->set_variable(var);
+      std::cout << "the name here1 is: " << reg_name << " " << current_node_id << " " << top_level_function_name << '\n';
       curr_node->set_array_label(reg_name);
     } else if (param_tag == 1 && curr_microop == LLVM_IR_Store) {
       // 1st arg of store is the address, and the 2nd arg is the value, but the
@@ -516,6 +529,7 @@ void DDDG::parse_parameter(const std::string& line, int param_tag) {
       const std::string& reg_name = parameter_label_per_inst[0];
       Variable* var = srcManager.get<Variable>(reg_name);
       curr_node->set_variable(var);
+      std::cout << "the name here2 is: " << reg_name << " " << current_node_id << " " << top_level_function_name << '\n';
       curr_node->set_array_label(reg_name);
     } else if (param_tag == 1 && curr_microop == LLVM_IR_GetElementPtr) {
       Addr base_address = parameter_value_per_inst.back();
@@ -527,6 +541,7 @@ void DDDG::parse_parameter(const std::string& line, int param_tag) {
       // Only GEPs have an array label we can use to update the base address.
       Variable* real_array = get_array_real_var(base_label);
       const std::string& real_name = real_array->get_name();
+      std::cout << "the name here3 is: " << real_name << " " << current_node_id << " " << top_level_function_name << '\n';
       curr_node->set_array_label(real_name);
       datapath->addArrayBaseAddress(real_name, base_address);
     } else if (param_tag == 1 && curr_node->is_host_mem_op()) {
@@ -557,6 +572,7 @@ void DDDG::parse_result(const std::string& line) {
 
   if (curr_microop == LLVM_IR_Alloca) {
     curr_node->set_variable(srcManager.get<Variable>(label_str));
+      std::cout << "the name here4 is: " << label_str << '\n';
     curr_node->set_array_label(label_str);
     datapath->addArrayBaseAddress(label_str, value.getScalar());
   } else if (curr_microop == LLVM_IR_Load) {

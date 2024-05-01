@@ -70,6 +70,8 @@ void Scratchpad::getAveragePower(unsigned int cycles,
     load_energy += it->second->getReadEnergy();
     store_energy += it->second->getWriteEnergy();
     leakage_power += it->second->getLeakagePower();
+
+    it->second->resetStats();
   }
 
   // Load power and store power are computed per cycle, so we have to average

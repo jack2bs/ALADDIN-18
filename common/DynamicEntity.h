@@ -38,7 +38,7 @@ class DynamicFunction {
   }
 
   bool operator==(const DynamicFunction& other) const {
-    return (*other.function == *function && other.iteration == iteration);
+    return (*other.function == *function);
   }
 
   DynamicFunction& operator=(const DynamicFunction& other) {

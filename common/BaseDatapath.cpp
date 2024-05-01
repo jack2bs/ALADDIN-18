@@ -877,6 +877,9 @@ void BaseDatapath::prepareForScheduling() {
 
   executingQueue.clear();
   readyToExecuteQueue.clear();
+
+  program.printDDDG();
+
   initExecutingQueue();
 }
 
@@ -1014,7 +1017,9 @@ void BaseDatapath::markNodeCompleted(
     std::list<ExecNode*>::iterator& executingQueuePos, int& advance_to) { 
   ExecNode* node = *executingQueuePos;
  
-  std::cout << "Node#: " << node->get_node_id() << ", op: " << node->get_microop_name() << ", num_cycles: " << num_cycles << '\n';
+  std::cout << "Node#: " << node->get_node_id() << ", op: " << node->get_microop_name() 
+            << ", numcycles: " << node->get_start_execution_cycle() << ", latency: " 
+            << node->get_time_before_execution() << '\n';
  
   executedNodes++;
   node->set_complete_execution_cycle(num_cycles);

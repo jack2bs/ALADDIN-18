@@ -168,6 +168,9 @@ class Program {
   // considered to have distance 1.
   int shortestDistanceBetweenNodes(unsigned from, unsigned to) const;
 
+  // Debug helper to print the dddg
+  void printDDDG(void);
+
   //=-------- Program data ---------=//
 
   // Complete set of all execution nodes.
